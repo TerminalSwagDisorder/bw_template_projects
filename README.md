@@ -7,3 +7,7 @@ These are free to use.<br>
 This project contains a React + Node full-stack app, with full user authentication.<br>
 It features a Node server with choices for JsonWebToken and Express-session & MySQL, SQLite3 and Axios.<br>
 In the frontend it features a robust api file containing all front-to-back connections. The frontend also has a darkmode toggle and premade styling.<br>
+<br>
+# Python database creator<br>
+This project contains some Python scripts for creating databases.<br>
+The scripts use SQLalchemy and are in both MySQL and SQLite flavour.<br> 
