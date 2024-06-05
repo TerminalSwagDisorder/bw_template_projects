@@ -218,6 +218,34 @@ const routePagination = (req, res, next) => {
     req.pagination = { page, items };
     next();
 }
+
+// Middleware for regex validation
+const checkRegex = (req, res, next) => {
+	const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{9,}$/; // At least 1 upper character, at least 1 digit/number, at least 9 chars long
+	const emailRegex = /^[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+(?:\.[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+)*@(?:[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?\.)+[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?$/; // Email according to the RFC 5322 standard
+
+	let email;
+	let password;
+	const { formFields } = req.body;
+    if (formFields) {
+        ({ email, password } = JSON.parse(formFields));
+    } else {
+        ({ email, password } = req.body);
+    }
+
+	// Validate email
+	if (typeof email !== "undefined" && email !== "" && !emailRegex.test(email)) {
+		return res.status(400).json({ message: "Invalid email format. Please enter a valid email address in the format: example@domain.com" });
+	}
+
+	// Validate password
+	if (typeof password !== "undefined" && password !== "" && !passwordRegex.test(password)) {
+			return res.status(400).json({ message: "Invalid password format. Password must be at least 8 characters long, include 1 capital letter, and 1 number." });
+	}
+
+
+    next();
+};
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
@@ -378,14 +406,13 @@ app.get("/api/users", routePagination, async (req, res) => {
     }
 });
 
-// Signing up
-app.post("/api/users/signup", async (req, res) => {
+app.post("/api/users/signup", checkRegex, async (req, res) => {
     console.log("API user signup accessed");
 
     const { formFields } = req.body;
 	const jsonFormFields = JSON.parse(formFields)
 	const { name, email, password, phone_number, med_id, role } = jsonFormFields;
-
+	console.log({name, email, password, phone_number, med_id, role})
 
     try {
 		// Check if email exists
@@ -396,7 +423,7 @@ app.post("/api/users/signup", async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const apiPostRes = await axios.post(`${apiEndpoint}register`, {name, email, password: hashedPassword, phone_number, role});
+        const apiPostRes = await axios.post(`${apiEndpoint}register`, {name, email, password: hashedPassword, phone_number, med_id, role});
         return res.status(200).json({message: "User registered successfully" });
 
     } catch (error) {
@@ -404,33 +431,44 @@ app.post("/api/users/signup", async (req, res) => {
 		// If there is a status message or data then use that, otherwise the defaults
 		const message = error.response ? error.response.data : "Internal Server Error";
         const status = error.response ? error.response.status : 500;
-        return res.status(status).send(message);
+        return res.status(status).json({ message: message });
     }
 });
 
 // Login
 app.post("/api/users/login", async (req, res) => {
     console.log("API users login accessed");
-    const { email, password } = req.body;
+    const { formFields, userType } = req.body;
+	const jsonFormFields = JSON.parse(formFields)	
+	
+	const { email, password } = jsonFormFields;
     try {
 		if (userType === "user") {
 			const apiRes = await axios.get(`${apiEndpoint}users/search`, { params: { email } });
 
-			const user = apiRes.data[0] || apiRes.data;
-
-			if (!user) {
-				return res.status(404).json({ message: "User not found" });
+			// If the search resulted in more (or less) than 1 user
+			if (apiRes.data.length !== 1) {
+				return res.status(404).json({ message: "Email or password is incorrect" });
+			}
+			
+			const user = apiRes.data[0]; // Sadly, the search endpoint transforms the data into an array of objects
+			user.userType = userType;
+			
+			// If the email is not an exact match
+			if (!user || user.email !== email) {
+				return res.status(404).json({ message: "Email or password is incorrect" });
 			}
 
 			const match = await bcrypt.compare(password, user.password);
 			if (match) {
 
 				// Provide an accessToken cookie
-				const accessToken = jwt.sign({ user }, jwtSecret, {
+				const accessToken = jwt.sign({ user: {id: user.id, name: user.name}, userType }, jwtSecret, {
 					expiresIn: "1h",
 				});
 				res.cookie("accessToken", accessToken, {
 					httpOnly: true,
+					secure: true,
 					sameSite: "lax",
 					maxAge: 3600000
 				});
@@ -447,7 +485,7 @@ app.post("/api/users/login", async (req, res) => {
 		// If there is a status message or data then use that, otherwise the defaults
 		const message = error.response ? error.response.data : "Internal Server Error";
         const status = error.response ? error.response.status : 500;
-        return res.status(status).send(message);
+        return res.status(status).json({ message: message });
     }
 });
 
@@ -463,10 +501,11 @@ app.get("/api/profile", authenticateJWT, (req, res) => {
 app.get("/api/profile/refresh", authenticateJWT, async (req, res) => {
 	console.log("API profile refresh accessed")
 	const userId = req.user.user.id;
-
 	try {
 		const apiRes = await axios.get(`${apiEndpoint}users/${userId}`);
+
 		const user = apiRes.data;
+		user.userType = req.user.userType;
 
 		if (!user) {
 			return res.status(404).json({ message: "User not found" });
@@ -479,9 +518,10 @@ app.get("/api/profile/refresh", authenticateJWT, async (req, res) => {
 		// If there is a status message or data then use that, otherwise the defaults
 		const message = error.response ? error.response.data : "Internal Server Error";
         const status = error.response ? error.response.status : 500;
-        return res.status(status).send(message);
+        return res.status(status).json({ message: message });
 	}
 });
+
 
 // Logout route (Frontend will handle removing the token with JWT)
 app.post("/api/logout", (req, res) => {
@@ -491,23 +531,25 @@ app.post("/api/logout", (req, res) => {
 });
 
 // Update own user credentials
-app.patch("/api/profile", authenticateJWT, async (req, res) => {
+app.patch("/api/profile", authenticateJWT, checkRegex, async (req, res) => {
 	console.log("API update own credentials accessed")
 	const userId = req.user.user.id;
 	const { formFields } = req.body; // Updated credentials from request body
 
 	try {
-
 		const match = await bcrypt.compare(currentPassword, req.user.password)
 		if (!match) {
 			return res.status(403).json({ message: "Current password is incorrect" });
 		}
 
+		let hashedPassword = null;
 		let updateQuery = {};
 		const jsonFormFields = JSON.parse(formFields)
-		const allowedFields = ["name", "email", "password", "phone_number"];
-		// More dynamic way of updating users, used with formFields & FormData
+		const allowedFields = ["name","email", "password"];
+
+		// More dynamic way of updating users
 		for (const key in jsonFormFields) {
+			console.log(key)
 			if (allowedFields.includes(key)) {
 				if (jsonFormFields.hasOwnProperty(key)) {
 					if (jsonFormFields[key] !== "") {
@@ -522,9 +564,8 @@ app.patch("/api/profile", authenticateJWT, async (req, res) => {
 				}
 			}
 		}
-		
-		const apiPostRes = await axios.patch(`${apiEndpoint}users/${userId}`, Query);
 
+		const apiPostRes = await axios.patch(`${apiEndpoint}users/${userId}`, updateQuery);
 
 		return res.status(200).json({ message: "User updated successfully" });
 	} catch (error) {
@@ -532,9 +573,10 @@ app.patch("/api/profile", authenticateJWT, async (req, res) => {
 		// If there is a status message or data then use that, otherwise the defaults
 		const message = error.response ? error.response.data : "Internal Server Error";
         const status = error.response ? error.response.status : 500;
-        return res.status(status).send(message);
+        return res.status(status).json({ message: message });
 	}
 });
+
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////
