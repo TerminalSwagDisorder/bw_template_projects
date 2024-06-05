@@ -411,8 +411,7 @@ app.post("/api/users/signup", checkRegex, async (req, res) => {
 
     const { formFields } = req.body;
 	const jsonFormFields = JSON.parse(formFields)
-	const { name, email, password, phone_number, med_id, role } = jsonFormFields;
-	console.log({name, email, password, phone_number, med_id, role})
+	const { name, email, password, phone_number, role } = jsonFormFields;
 
     try {
 		// Check if email exists
@@ -423,7 +422,7 @@ app.post("/api/users/signup", checkRegex, async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const apiPostRes = await axios.post(`${apiEndpoint}register`, {name, email, password: hashedPassword, phone_number, med_id, role});
+        const apiPostRes = await axios.post(`${apiEndpoint}register`, {name, email, password: hashedPassword, phone_number, role});
         return res.status(200).json({message: "User registered successfully" });
 
     } catch (error) {
