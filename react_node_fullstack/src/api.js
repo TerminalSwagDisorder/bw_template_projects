@@ -36,12 +36,16 @@ export const ThemeProvider = ({ children }) => {
 // Fetch users using pagination
 export const fetchUsers = async (page) => {
 	try {
-		const response = await fetch(`http://localhost:4000/api/users?page=${page}&items=50`);
+		const response = await fetch(`http://localhost:4000/api/users?page=${page}&items=50`, {
+			method: "GET",
+			credentials: "include", // Important, because we're using cookies
+		});
+
 		const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}: ${data.message}`);
             alert(`HTTP error ${response.status}: ${data.message}`);
+            throw new Error(`HTTP error ${response.status}: ${data.message}`);
         }
 
 		// If data is not correct format
@@ -52,9 +56,10 @@ export const fetchUsers = async (page) => {
 		return data;
 	} catch (error) {
 		console.error(error);
-		//throw new Error(error);
+		
 	}
 };
+
 
 // Fetch different types of data from pages
 export const fetchDynamicData = async (page, tableName) => {
@@ -66,12 +71,15 @@ export const fetchDynamicData = async (page, tableName) => {
 	}
 
 	try {
-		const response = await fetch(`http://localhost:4000/api/${tableName}?page=${page}&items=50`);
+		const response = await fetch(`http://localhost:4000/api/${tableName}?page=${page}&items=50`, {
+			method: "GET",
+			credentials: "include", // Important, because we're using cookies
+		});
 		const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}: ${data.message}`);
             alert(`HTTP error ${response.status}: ${data.message}`);
+            throw new Error(`HTTP error ${response.status}: ${data.message}`);
         }
 
 		// If data is not correct format
@@ -82,9 +90,42 @@ export const fetchDynamicData = async (page, tableName) => {
 		return data;
 	} catch (error) {
 		console.error(error);
-		//throw new Error(error);
 	}
 };
+
+
+// Search function for users/otherusers
+export const fetchSearchData = async (searchTerm, tableName) => {
+	// Only allow the specified tableNames
+	const allowedTableNames = ["other/users", "users"]
+	if (!allowedTableNames.includes(tableName) || tableName === "") {
+		console.error(`tableName "${tableName}" is not allowed!`)
+		throw new Error(`tableName "${tableName}" is not allowed!`)
+	}
+	console.log(searchTerm)
+	try {
+		const response = await fetch(`http://localhost:4000/api/${tableName}/search?email=${searchTerm}`, {
+			method: "GET",
+			credentials: "include", // Important, because we're using cookies
+		});
+		const data = await response.json();
+
+        if (!response.ok) {
+            alert(`HTTP error ${response.status}: ${data.message}`);
+            throw new Error(`HTTP error ${response.status}: ${data.message}`);
+        }
+
+		// If data is not correct format
+		if (!Array.isArray(data)) {
+		  return Object.values(data);
+		}
+		
+		return data;
+	} catch (error) {
+		console.error(error);
+	}
+};
+
 
 // Search function for users/otherusers using id
 export const fetchSearchIdData = async (UserId, tableName) => {
@@ -96,12 +137,15 @@ export const fetchSearchIdData = async (UserId, tableName) => {
 		throw new Error(`tableName "${tableName}" is not allowed!`)
 	}
 	try {
-		const response = await fetch(`http://localhost:4000/api/${tableName}/${UserId}`);
+		const response = await fetch(`http://localhost:4000/api/${tableName}/${UserId}`, {
+			method: "GET",
+			credentials: "include", // Important, because we're using cookies
+		});
 		const data = await response.json(); // Note for some reason this is a different format from email search
 
         if (!response.ok) {
-            throw new Error(`HTTP error ${response.status}: ${data.message}`);
             alert(`HTTP error ${response.status}: ${data.message}`);
+            throw new Error(`HTTP error ${response.status}: ${data.message}`);
         }
 
 		// If data is not correct format
@@ -113,16 +157,20 @@ export const fetchSearchIdData = async (UserId, tableName) => {
 		return data;
 	} catch (error) {
 		console.error(error);
-		//throw new Error(error);
 	}
 };
+
 
 // For pagination
 export const fetchDataAmount = async (tableName) => {
 	try {	
-		const response = await fetch(`http://localhost:4000/api/count?tableName=${tableName}&items=50`);
+		const response = await fetch(`http://localhost:4000/api/count?tableName=${tableName}&items=50`, {
+			method: "GET",
+			credentials: "include", // Important, because we're using cookies
+		});
 
         if (!response.ok) {
+			alert(`HTTP error ${response.status}: ${response.message}`);
             throw new Error(`HTTP error ${response.status}: ${response.message}`);
         }
 
@@ -130,28 +178,44 @@ export const fetchDataAmount = async (tableName) => {
 		return count;
 	} catch (error) {
 		console.error("Error while getting pagination:", error);
-		//throw new Error(error);
 	}
     
 };
 
 
+
 // Do all of the user data handling async
 // Signin
-export const handleSignin = async (event, handleUserChange) => {
+export const handleSignin = async (event, formFields, handleUserChange, userType) => {
 	const email = event.target.email.value;
 	const password = event.target.password.value;
+	// Only allow the specified userTypes
+	const allowedUserTypes = ["otheruser", "user"]
+	if (!allowedUserTypes.includes(userType) || userType === "") {
+		console.error(`userType "${userType}" is not allowed!`)
+		alert(`userType "${userType}" is not allowed!`)
+	}
 
 	// api call to the server to log in the user
 	try {
 		if (email && password) {
-			const response = await fetch(`http://localhost:4000/api/users/login`, {
+		// Depending on usertype, create the endpoint
+			let responseEndpoint;
+			if (userType === "user") {
+				responseEndpoint = "users"
+			} else if (userType === "otheruser") {
+				responseEndpoint = "other/users"
+			}
+
+			if (formFields && typeof formFields === "object" && !Array.isArray(formFields)) formFields = JSON.stringify(formFields);
+
+			const response = await fetch(`http://localhost:4000/api/${responseEndpoint}/login`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json"
 				},
 				credentials: "include", // For all fetch requests, do this!
-				body: JSON.stringify({ email, password, userType })
+				body: JSON.stringify({ formFields, userType })
 			});
 			const data = await response.json();
 			//console.log("data.userData", data.user)
@@ -174,7 +238,6 @@ export const handleSignin = async (event, handleUserChange) => {
 			}
 	} catch (error) {
 		console.error("Error signing user in:", error);
-		//throw new Error(error);
 	}
 };
 
@@ -215,6 +278,63 @@ export const handleSignup = async (event, formFields) => {
 
 	}
 };
+
+
+// Signup
+export const handleSignup = async (event, userType, formFields) => {
+
+	// Only allow the specified userTypes
+	const allowedUserTypes = ["user", "otheruser"]
+	if (!allowedUserTypes.includes(userType) || userType === "") {
+		console.error(`userType "${userType}" is not allowed!`)
+		alert(`userType "${userType}" is not allowed!`)
+	}
+
+	//console.log(name, email, password)
+	try {
+		// Depending on usertype, create the endpoint
+		let responseEndpoint;
+		if (userType === "user") {
+			formFields.role = "user"
+			responseEndpoint = "users"
+		} else if (userType === "otheruser") {
+			formFields.role = "ambulance"
+			responseEndpoint = "other/users"
+		}
+
+		if (formFields && typeof formFields === "object" && !Array.isArray(formFields)) formFields = JSON.stringify(formFields);
+		console.log(formFields)
+		// api call to register a new user
+		const response = await fetch(`http://localhost:4000/api/${responseEndpoint}/signup`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json"
+			},
+			credentials: "include", // Important, because we're using cookies
+			body: JSON.stringify({ formFields }),
+		});
+
+		const data = await response.json();
+
+		if (response.ok) {
+			alert("Signed up successfully");
+			return true;
+		} else {
+			if (data.message) {
+				alert(`HTTP error ${response.status}: ${data.message}`)
+				throw new Error(data.error);
+			} else {
+				alert("Failed sign up. Please try again.");
+				throw new Error(data.error);
+			}
+		}
+	} catch (error) {
+		console.error("Error adding user:", error);
+		if (error.message) alert(error.message)
+
+	}
+};
+
 
 // Signout
 export const handleSignout = async (handleUserChange) => {
@@ -266,6 +386,7 @@ export const checkIfSignedIn = async () => {
 	}
 };
 
+
 // Profile refresh
 export const refreshProfile = async () => {
 
@@ -292,11 +413,13 @@ export const refreshProfile = async () => {
 	}
 };
 
-// User credential change
-export const handleCredentialChange = async (formFields) => {
 
+// User credential change
+export const handleCredentialChange = async (event, formFields) => {
+    event.preventDefault();
     try {
 		if (formFields && typeof formFields === "object" && !Array.isArray(formFields)) formFields = JSON.stringify(formFields);
+
 		const response = await fetch("http://localhost:4000/api/profile", {
 				method: "PATCH",
 				headers: {
@@ -312,6 +435,7 @@ export const handleCredentialChange = async (formFields) => {
 		if (response.ok) {
 			console.log("User updated successfully:", data);
 			alert("Successfully changed credentials!");
+			return true;
 		} else {
 			if (data.message) {
 				alert(`HTTP error ${response.status}: ${data.message}`)
