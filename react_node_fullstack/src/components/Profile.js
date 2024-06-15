@@ -1,25 +1,55 @@
 // File name: Profile.js
 // Auth: Terminal Swag Disorder
 // Desc: File containing code for profile page
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCameraRetro } from "react-icons/fa";
 import { AiTwotoneDelete } from "react-icons/ai";
-import { Container, Card, Form, Button, Row, Col, Tab, Nav, Image, CloseButton, ListGroup } from "react-bootstrap";
+import { Container, Card, Form, Button, Row, Col, Tab, Nav, Image, CloseButton, ListGroup, OverlayTrigger, Tooltip } from "react-bootstrap";
 
 const Profile = ({ currentUser, setCurrentUser, handleCredentialChange, handleSignout, refreshProfileData }) => {
 
-  const [currentOperation, setCurrentOperation] = useState("");
-  const navigate = useNavigate();
+	const navigate = useNavigate();
+	const [currentOperation, setCurrentOperation] = useState("");
+	const [formFields, setFormFields] = useState({});
+	const [emailValid, setEmailValid] = useState(false);
+	const [passwordValid, setPasswordValid] = useState(false);
 
-const closeForm = () => {
-    setCurrentOperation("");
-  };
+	const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{9,}$/;
+	const emailRegex = /^[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+(?:\.[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+)*@(?:[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?\.)+[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?$/;
 
-  const handleModifyProfile = (user) => {
-    setCurrentOperation(user);
-  };
+	const handleInputChange = (event) => {
+		setFormFields((prevFields) => ({
+			...prevFields,
+			[event.target.name]: event.target.value,
+		}));
+
+		if (event.target.name === "email") {
+			setEmailValid(emailRegex.test(event.target.value));
+		}
+
+		if (event.target.name === "password") {
+			setPasswordValid(passwordRegex.test(event.target.value));
+		}
+	};
+
+	console.log(currentUser)
+	const closeForm = () => {
+		setCurrentOperation("");
+		setFormFields({})
+		setEmailValid(false)
+		setPasswordValid(false)
+	};
+
+	const handleModifyProfile = (user) => {
+		setCurrentOperation(user);
+	};
+
+	const renderTooltip = (props) => (
+		<Tooltip id="button-tooltip" {...props}>
+			Password must be at least 9 characters long, include 1 capital letter, and 1 number.
+		</Tooltip>
+	);
 
   const renderUserForm = () => {
     if (currentOperation === "edit") {
@@ -35,6 +65,7 @@ const closeForm = () => {
                 type="text"
                 placeholder="Enter new name"
                 name="name"
+		  		onChange={handleInputChange}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -42,28 +73,27 @@ const closeForm = () => {
                 type="email"
                 placeholder="Enter new email"
                 name="email"
+		  		onChange={handleInputChange}
+		  		className={emailValid ? "valid-input" : "invalid-input"}
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Control
-                type="phone_number"
-                placeholder="Enter new phone number"
-                name="phone_number"
-		  		disabled
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
+		  	<OverlayTrigger placement="right" delay={{ hide: 400 }} overlay={renderTooltip}>
               <Form.Control
                 type="password"
                 placeholder="Enter new password"
                 name="password"
+		  		onChange={handleInputChange}
+		  		className={passwordValid ? "valid-input" : "invalid-input"}
               />
+		  	</OverlayTrigger>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Control
                 type="password"
                 placeholder="Enter current password"
                 name="currentpassword"
+		  		onChange={handleInputChange}
                 required
               />
             </Form.Group>
@@ -84,6 +114,7 @@ const closeForm = () => {
                 type="text"
                 placeholder="Enter new name"
                 name="name"
+		  		onChange={handleInputChange}
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -91,36 +122,27 @@ const closeForm = () => {
                 type="email"
                 placeholder="Enter new email"
                 name="email"
+		  		onChange={handleInputChange}
+		  		className={emailValid ? "valid-input" : "invalid-input"}
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Control
-                type="phone_number"
-                placeholder="Enter new phone number"
-                name="phone_number"
-		  		disabled
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Control
-                type="organisation"
-                placeholder="Enter new organisation"
-                name="organisation"
-		  		disabled
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
+		  	<OverlayTrigger placement="right" delay={{ hide: 400 }} overlay={renderTooltip}>
               <Form.Control
                 type="password"
                 placeholder="Enter new password"
                 name="password"
+		  		onChange={handleInputChange}
+		  		className={passwordValid ? "valid-input" : "invalid-input"}
               />
+		  	</OverlayTrigger>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Control
                 type="password"
                 placeholder="Enter current password"
                 name="currentpassword"
+		  		onChange={handleInputChange}
                 required
               />
             </Form.Group>
@@ -150,7 +172,6 @@ const closeForm = () => {
 				<ListGroup className="profile-details">
 				  <ListGroup.Item>Name: <span>{currentUser.name}</span></ListGroup.Item>
 				  <ListGroup.Item>Email: <span>{currentUser.email}</span></ListGroup.Item>
-				  <ListGroup.Item>Phone number: <span>{currentUser.phone_number}</span></ListGroup.Item>
 				</ListGroup>
 			);
 		} else {
@@ -158,8 +179,6 @@ const closeForm = () => {
             <ListGroup className="profile-details">
               <ListGroup.Item>Name: <span>{currentUser.name}</span></ListGroup.Item>
               <ListGroup.Item>Email: <span>{currentUser.email}</span></ListGroup.Item>
-              <ListGroup.Item>Phone number: <span>{currentUser.phone_number}</span></ListGroup.Item>
-              <ListGroup.Item>Role: <span>{currentUser.role}</span></ListGroup.Item>
             </ListGroup>
 		)}
 	};
@@ -191,8 +210,14 @@ const closeForm = () => {
     }
 
     try {
-      await handleCredentialChange(event);
-      await refreshProfileData();
+      const success = await handleCredentialChange(event, formFields);
+		if (success) {
+      		await refreshProfileData();
+			closeForm();
+			setFormFields({})
+			setEmailValid(false)
+			setPasswordValid(false)
+		}
     } catch (error) {
       console.error("Error updating credentials:", error);
       alert("Error updating credentials.");
@@ -229,3 +254,4 @@ const closeForm = () => {
 };
 
 export default Profile;
+

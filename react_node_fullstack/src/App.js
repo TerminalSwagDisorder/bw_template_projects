@@ -1,6 +1,6 @@
-import { Router, Routes, Route, BrowserRouter } from "react-router-dom";
+import {Routes, Route, BrowserRouter } from "react-router-dom";
 import React, { useState, useEffect } from "react";
-import "./App.scss";
+import "./style/style.scss";
 import Home from "./components/Home";
 import Profile from "./components/Profile";
 import NavBar from "./components/Nav";
@@ -8,7 +8,7 @@ import Signin from "./components/Signin";
 import Signup from "./components/Signup";
 import Admin from "./components/Admin";
 import DashboardAdmin from "./components/DashboardAdmin";
-import { ThemeContext, ThemeProvider, fetchUsers, fetchDynamicData, fetchSearchIdData, fetchDataAmount, handleSignin, handleSignup, handleSignout, checkIfSignedIn, refreshProfile, handleCredentialChange } from "./api";
+import { ThemeContext, ThemeProvider, fetchUsers, fetchDynamicData, fetchSearchIdData, fetchDataAmount, handleSignin, handleSignup, handleSignout, checkIfSignedIn, refreshProfile, handleCredentialChange } from "./api/api";
 
 
 function App() {

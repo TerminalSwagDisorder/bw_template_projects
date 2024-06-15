@@ -1,9 +1,8 @@
 // File name: Signin.js
 // Auth: Terminal Swag Disorder
 // Desc: File containing code for signing in page
-
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Container, Button, Form, Spinner } from "react-bootstrap";
 
 // Function for signin in, take onSubmit and setting the current user as props
@@ -12,6 +11,47 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
+	const [userType, setUserType] = useState("user");
+	const [formFields, setFormFields] = useState({});
+
+	const handleInputChange = (event) => {
+		setFormFields((prevFields) => ({
+			...prevFields,
+			[event.target.name]: event.target.value,
+		}));
+	};
+
+	const toggleUserType = (userType) => {
+		setUserType(userType)
+	}
+
+	const renderUserTypeToggle = (event) => {
+		let userTypeButton;
+		if (userType === "user") {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("meduser")}> User mode: { userType } </Button> 
+				</>
+			)
+		} else if (userType === "meduser") {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("user")}> User mode: { userType } </Button> 
+				</>
+			)
+		} else {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("user")}> User mode: No userType </Button> 
+				</>
+			)
+		}
+		return (
+			<>
+			{userTypeButton}
+			</>
+		)
+	}
 
 	// Function for when the user submits the sign in form
 	const handleSubmit = async (event) => {
@@ -19,11 +59,10 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 		event.preventDefault();
 		setIsLoading(true);
 		try {
-			const signedIn = await handleSignin(event, handleUserChange);
-			if (signedIn) navigate("/")
-				
-			//const userData = await checkIfSignedIn();
-			//handleUserChange(userData);
+			const success = await handleSignin(event, formFields, handleUserChange, userType);
+			if (success) {
+				navigate("/")
+			}
 		} catch (error) {
 			console.error(error.message);
 		} finally {
@@ -48,6 +87,7 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 					boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
 				}}
 			>
+			{renderUserTypeToggle()}
 				<Form style={{ textAlign: "left" }} onSubmit={handleSubmit}>
 					<h1>Sign in</h1>
 					<Form.Group className="mb-3" controlId="formBasicEmail" >
@@ -57,6 +97,7 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 							placeholder="Enter email"
 							required
 							name="email"
+							onChange={handleInputChange}
 						/>
 					</Form.Group>
 
@@ -67,6 +108,7 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 							placeholder="Enter password"
 							required
 							name="password"
+							onChange={handleInputChange}
 						/>
 					</Form.Group>
 
@@ -81,9 +123,11 @@ export const Signin = ({ handleUserChange, currentUser, handleSignin, checkIfSig
 						)}
 					</Button>
 				</Form>
+				<Button style={{ width: "100%" }} as={Link} to="/signup">Sign up</Button>
 			</div>
 		</Container>
 	);
 };
 
 export default Signin;
+

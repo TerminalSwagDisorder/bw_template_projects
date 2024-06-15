@@ -1,9 +1,8 @@
 // File name: Signup.js
 // Auth: Terminal Swag Disorder
 // Desc: File containing code for signing up page
-
 import React, { useState, useEffect } from "react";
-import { Container, Button, Form, Spinner } from "react-bootstrap";
+import { Container, Button, Form, Spinner, OverlayTrigger, Tooltip } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 
 
@@ -11,15 +10,36 @@ import { useNavigate } from "react-router-dom";
 export const Signup = ({ handleSignup }) => {
 	const navigate = useNavigate();
 	const [isLoading, setIsLoading] = useState(false);
-	const [inputValue, setInputValue] = useState("");
+	const [userType, setUserType] = useState("user");
 	const [formFields, setFormFields] = useState(
 		{
 		name: "",
 		email: "",
 		password: "",
-		phone_number: "",
 		});
+	const [inputValue, setInputValue] = useState("");
+	const [emailValid, setEmailValid] = useState(false);
+	const [passwordValid, setPasswordValid] = useState(false);
 
+	const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{9,}$/;
+	const emailRegex = /^[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+(?:\.[-A-Za-z0-9!#$%&'*+/=?^_`{|}~]+)*@(?:[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?\.)+[A-Za-z0-9](?:[-A-Za-z0-9]*[A-Za-z0-9])?$/;
+
+
+	// Update form fields when userType changes
+	useEffect(() => {
+		if (userType === "other") {
+			setFormFields((prevFields) => ({
+				...prevFields,
+		   }));
+		}
+		if (userType === "user")	{
+			setFormFields((prevFields) => ({
+				...prevFields,
+		   }));
+		}
+	}, [userType]);
+
+	
 	const toggleUserType = (userType) => {
 		setUserType(userType)
 	}
@@ -30,6 +50,14 @@ export const Signup = ({ handleSignup }) => {
 			...prevFields,
 			[event.target.name]: event.target.value,
 		}));
+
+		if (event.target.name === "email") {
+			setEmailValid(emailRegex.test(event.target.value));
+		}
+
+		if (event.target.name === "password") {
+			setPasswordValid(passwordRegex.test(event.target.value));
+		}
 	};
 		  
   // Function for when the user submits the sign up form
@@ -37,24 +65,32 @@ export const Signup = ({ handleSignup }) => {
 		const newName = event.target.name.value;
 		const newEmail = event.target.email.value;
 		const newPassword = event.target.password.value;
-		const newPhoneNumber = event.target.phone_number.value;
 
-		if (!newName && !newEmail && !newPassword && !newPhoneNumber && !newMedId) {
-			alert("All required fields must be filled!");
-			return;
+		if (userType === "user") {
+			if (!newName && !newEmail && !newPassword) {
+				alert("All required fields must be filled!");
+				return;
+			}
 		}
 
-		if (!newName && !newEmail && !newPassword && !newPhoneNumber && !newOrganisation) {
-			alert("All required fields must be filled!");
-			return;
+		if (userType === "otheruser") {
+			if (!newName && !newEmail && !newPassword) {
+				alert("All required fields must be filled!");
+				return;
+			}
 		}
 
 		// Need this to prevent regular js from ruining the form submission
 		event.preventDefault();
 		setIsLoading(true);
 		try {
-			const signedUp = await handleSignup(event, formFields);
-			if (signedUp) navigate("/signin")
+			const success = await handleSignup(event, userType, formFields);
+			if (success) {
+				navigate("/signin")
+				setFormFields({})
+				setEmailValid(false)
+				setPasswordValid(false)	
+			}
 
 
 			} catch (error) {
@@ -63,10 +99,44 @@ export const Signup = ({ handleSignup }) => {
 				setIsLoading(false);
 			}
 		};
+
+	const renderUserTypeToggle = () => {
+		let userTypeButton;
+		if (userType === "user") {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("otheruser")}> User mode: { userType } </Button> 
+				</>
+			)
+		} else if (userType === "otheruser") {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("user")}> User mode: { userType } </Button> 
+				</>
+			)
+		} else {
+			userTypeButton = ( 
+				<>
+				<Button onClick = {() => toggleUserType("user")}> User mode: No userType </Button> 
+				</>
+			)
+		}
+		return (
+			<>
+			{userTypeButton}
+			</>
+		)
+	}
+
+	const renderTooltip = (props) => (
+		<Tooltip id="button-tooltip" {...props}>
+			Password must be at least 9 characters long, include 1 capital letter, and 1 number.
+		</Tooltip>
+	);
 	
 	const renderSignupForm = () => {
 		let userTypeSignup;
-		if (userType === "user" || userType !== "meduser") {
+		if (userType === "user" || userType !== "otheruser") {
 			userTypeSignup = (
 				  <div>
     <Container
@@ -86,6 +156,7 @@ export const Signup = ({ handleSignup }) => {
           boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
         }}
       >
+	  {renderUserTypeToggle()}
         <Form style={{ textAlign: "left" }} onSubmit={handleSubmit}>
           <h1>Sign up</h1>
 	  
@@ -110,11 +181,13 @@ export const Signup = ({ handleSignup }) => {
               name="email"
 				value={formFields.email}
 				onChange={handleInputChange}
+				className={emailValid ? "valid-input" : "invalid-input"}
             />
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formBasicPassword">
             <Form.Label>Password</Form.Label>
+			<OverlayTrigger placement="right" delay={{ hide: 400 }} overlay={renderTooltip}>
             <Form.Control
               type="password"
               placeholder="Enter password"
@@ -122,31 +195,9 @@ export const Signup = ({ handleSignup }) => {
               name="password"
 				value={formFields.password}
 				onChange={handleInputChange}
+				className={passwordValid ? "valid-input" : "invalid-input"}
             />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Phone number</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter phone number"
-              required
-              name="phone_number"
-				value={formFields.phone_number}
-				onChange={handleInputChange}
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Med id</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter med id"
-              required
-              name="med_id"
-				value={formFields.med_id}
-				onChange={handleInputChange}
-            />
+			</OverlayTrigger>
           </Form.Group>
 
           <Button type="submit" style={{ width: "100%" }} disabled={isLoading}>
@@ -163,7 +214,7 @@ export const Signup = ({ handleSignup }) => {
       </div>
     </Container>
 </div>
-		)} else if (userType === "meduser") {
+		)} else if (userType === "otheruser") {
 			userTypeSignup = (
 			<div>
     <Container
@@ -183,6 +234,7 @@ export const Signup = ({ handleSignup }) => {
           boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
         }}
       >
+	  {renderUserTypeToggle()}
         <Form style={{ textAlign: "left" }} onSubmit={handleSubmit}>
           <h1>Sign up</h1>
 	  
@@ -207,11 +259,13 @@ export const Signup = ({ handleSignup }) => {
               name="email"
 				value={formFields.email}
 				onChange={handleInputChange}
+				className={emailValid ? "valid-input" : "invalid-input"}
             />
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formBasicPassword">
             <Form.Label>Password</Form.Label>
+			<OverlayTrigger placement="right" delay={{ hide: 400 }} overlay={renderTooltip}>
             <Form.Control
               type="password"
               placeholder="Enter password"
@@ -219,31 +273,9 @@ export const Signup = ({ handleSignup }) => {
               name="password"
 				value={formFields.password}
 				onChange={handleInputChange}
+				className={passwordValid ? "valid-input" : "invalid-input"}
             />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Phone number</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter phone number"
-              required
-              name="phone_number"
-				value={formFields.phone_number}
-				onChange={handleInputChange}
-            />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Organisation</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter organisation"
-              required
-              name="organisation"
-				value={formFields.organisation}
-				onChange={handleInputChange}
-            />
+			</OverlayTrigger>
           </Form.Group>
 
           <Button type="submit" style={{ width: "100%" }} disabled={isLoading}>
@@ -275,3 +307,4 @@ export const Signup = ({ handleSignup }) => {
 };
 
 export default Signup;
+
